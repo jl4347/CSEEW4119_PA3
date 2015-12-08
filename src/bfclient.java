@@ -41,10 +41,10 @@ public class bfclient {
 		timeout = Integer.parseInt(args[1]);
 		
 		// Store original links for recover and send link update to neighbors
-		linkHistory.add(new Link(InetAddress.getLocalHost().getHostAddress(), listenPort, 0.0, true));
+		//linkHistory.add(new Link(InetAddress.getLocalHost().getHostAddress(), listenPort, 0.0, true));
 		for (int router = 0; router < (args.length - 2) / 3; router++) {
 			linkHistory.add(new Link(InetAddress.getByName(args[(router * 3) + 2]).getHostAddress(), 
-					Integer.parseInt(args[(router * 3) + 3]), Double.parseDouble(args[(router * 3) + 4]), false));
+					Integer.parseInt(args[(router * 3) + 3]), Double.parseDouble(args[(router * 3) + 4])));
 		}
 		
 		localhost = InetAddress.getLocalHost().getHostAddress() + ":" + listenPort;
