@@ -7,7 +7,7 @@ public class RouteTable {
 		routeTable = new ArrayList<>();
 	}
 
-	public void addRouteInfoWithoutCheck(RouteInfo routeInfo) {
+	public void addRouteInfo(RouteInfo routeInfo) {
 		routeTable.add(routeInfo);
 	}
 
