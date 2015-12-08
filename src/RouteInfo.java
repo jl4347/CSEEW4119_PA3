@@ -1,4 +1,3 @@
-
 public class RouteInfo {
 	public String destination;
 	public double cost;
