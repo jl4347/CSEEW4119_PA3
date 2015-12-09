@@ -106,8 +106,8 @@ public class bfclient {
 		}
 
 		linkInfo.linkMap.replace(command[1] + ":" + command[2], Double.POSITIVE_INFINITY);
-		linkInfo.brokenLink.put(command[1] + ":" + command[2], Boolean.TRUE);
-		routerDV.linkDown = true;
+		linkInfo.brokenLink.put(command[1] + ":" + command[2], true);
+		routerDV.linkDown.put(command[1] + ":" + command[2], true);
 		for (Link link : linkHistory) {
 			if (link.toString().equals(command[1] + ":" + command[2])) {
 				link.isAlive = false;
@@ -118,8 +118,22 @@ public class bfclient {
 	}
 	
 	private void linkUp(String[] command) {
-		// TODO Auto-generated method stub
+		System.out.println("Initiate LINKUP");
+		if (command.length != 3) {
+			System.out.println("Illege Command.");
+			System.out.println("Usage: LINKUP <ip> <port>");
+			return;
+		}
 		
+		for (Link link : linkHistory) {
+			if (link.toString().equals(command[1] + ":" + command[2])) {
+				link.isAlive = true;
+				linkInfo.linkMap.replace(command[1] + ":" + command[2], link.weight);
+				linkInfo.brokenLink.remove(command[1] + ":" + command[2]);
+				routerDV.linkDown.put(command[1] + ":" + command[2], false);
+				break;
+			}
+		}
 	}
 	
 	private void showRT(String[] command) {
