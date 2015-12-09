@@ -1,9 +1,10 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 
 public class Router {
-	public boolean linkDown = false;
+	public HashMap<String, Boolean> linkDown;
 	public String host;
 	public ArrayList<Link> links;
 
@@ -17,6 +18,10 @@ public class Router {
 		this.host = host;
 		links = linkHistory;
 
+		linkDown = new HashMap<>();
+		for (Link link : linkHistory) 
+			linkDown.put(link.toString(), false);
+		
 		routersList = new ArrayList<>();
 		linkInfoTable = new ConcurrentHashMap<>();
 		distanceVector = new ConcurrentHashMap<>();
@@ -53,7 +58,7 @@ public class Router {
 		// Linkage restore
 		if (!incomingLinks.brokenLink.containsKey(host)
 				&& localLinks.brokenLink.containsKey(incomingLinks.host)
-				&& linkDown == false) {
+				&& !linkDown.get(incomingLinks.host)) {
 			localLinks.brokenLink.remove(incomingLinks.host);
 			linkInfoTable.get(host).linkMap.put(incomingLinks.host, incomingLinks.linkMap.get(host));
 			System.out.println("restore");
