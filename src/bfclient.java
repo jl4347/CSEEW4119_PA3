@@ -10,6 +10,7 @@ public class bfclient {
 	// Link history to recover links later
 	public static ArrayList<Link> linkHistory = new ArrayList<Link>();
 	public static LinkInfo linkInfo;
+	public static Router routerDV;
 	
 	public final static String LINKDOWN = "LINKDOWN";
 	public final static String LINKUP = "LINKUP";
@@ -31,7 +32,19 @@ public class bfclient {
 				e.printStackTrace();
 			}
 		}
+		linkInfo = new LinkInfo(linkHistory, localhost);
 		
+		// Initialize the router and the local distance vector
+		routerDV = new Router(localhost, linkHistory);
+		routerDV.createDistanceVector(linkInfo);
+		
+		// Start Listening Thread
+		
+		
+		// Start broadcasting Thread
+		
+		
+		// Start UI
 		bfclient bfc = new bfclient();
 		bfc.startCLI();
 	}
@@ -95,13 +108,11 @@ public class bfclient {
 	}
 	
 	private void showRT(String[] command) {
-		// TODO Auto-generated method stub
-		
+		routerDV.routeTable.showRouteTable();
 	}
 	
 	private void close() {
-		// TODO Auto-generated method stub
-		
+		System.exit(0);
 	}
 
 	private static void printInstruction() {
