@@ -98,7 +98,22 @@ public class bfclient {
 	}
 	
 	private void linkDown(String[] command) {
-		// TODO Auto-generated method stub
+		System.out.println("Initiate LINKDOWN");
+		if (command.length != 3) {
+			System.out.println("Illege Command.");
+			System.out.println("Usage: LINKDOWN <ip> <port>");
+			return;
+		}
+
+		linkInfo.linkMap.replace(command[1] + ":" + command[2], Double.POSITIVE_INFINITY);
+		linkInfo.brokenLink.put(command[1] + ":" + command[2], Boolean.TRUE);
+		routerDV.linkDown = true;
+		for (Link link : linkHistory) {
+			if (link.toString().equals(command[1] + ":" + command[2])) {
+				link.isAlive = false;
+				break;
+			}
+		}
 		
 	}
 	
