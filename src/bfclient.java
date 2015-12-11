@@ -40,7 +40,7 @@ public class bfclient {
 		routerDV.createDistanceVector(linkInfo);
 		
 		// Start Listening Thread
-		
+		new ListenThread(listenPort, linkInfo, linkHistory, routerDV).start();
 		
 		// Start broadcasting Thread
 		
@@ -194,3 +194,4 @@ class ListenThread extends Thread {
 		}
 	}
 }
+
