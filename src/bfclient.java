@@ -43,7 +43,7 @@ public class bfclient {
 		new ListenThread(listenPort, linkInfo, linkHistory, routerDV).start();
 		
 		// Start broadcasting Thread
-		
+		new BroadcastThread(timeout, linkInfo, linkHistory, listenPort).start();
 		
 		// Start UI
 		bfclient bfc = new bfclient();
@@ -68,8 +68,7 @@ public class bfclient {
 		Scanner scanner = new Scanner(System.in);
 		System.out.println("Welcome to bfclient!");
 		
-		while (true)
-		{
+		while (true) {
 			String input = scanner.nextLine().trim();
 			String[] command = input.split(" ");
 			if (command.length == 0 || command[0].length() == 0) {
@@ -77,8 +76,7 @@ public class bfclient {
 			}
 			String cmd = command[0].toUpperCase();
 
-			switch (cmd)
-			{
+			switch (cmd) {
 				case LINKDOWN:
 					linkDown(command);
 					break;
@@ -147,6 +145,7 @@ public class bfclient {
 
 	private static void printInstruction() {
 		System.out.println("java ./class/bfclient localport timeout [ipaddress1 port1 weight1 ...]");
+		System.exit(0);
 	}
 }
 
@@ -188,10 +187,75 @@ class ListenThread extends Thread {
 					routerDV.updateDistanceVector(linkInfo, incomingLinks);
 				}
 			}
-		}
-		catch (IOException | ClassNotFoundException e) {
+		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 	}
 }
 
+// Thread for broadcasting ROUTE UPDATE
+class BroadcastThread extends Thread {
+	int timeout;
+	int listenPort;
+	ArrayList<Link> neighbors;
+	LinkInfo linkInfo;
+	DatagramSocket broadcastSocket;
+	DatagramPacket broadcastPacket;
+	ByteArrayOutputStream outputStream;
+	ObjectOutputStream oos;
+	byte[] broadcastDataByte = new byte[60 * 1024];
+
+	final int PORT_MIN = 10000;
+	final int PORT_RANGE = 10000;
+
+	public BroadcastThread(int timeout, LinkInfo linkInfo, ArrayList<Link> links, int listenPort) {
+		this.linkInfo = linkInfo;
+		neighbors = links;
+		this.timeout = timeout;
+		this.listenPort = listenPort;
+	}
+
+	@Override
+	public void run() {
+		while (true) {
+			try {
+				Thread.sleep(timeout * 1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+			try {
+				int port = (int) (PORT_MIN + PORT_RANGE * Math.random());
+				broadcastSocket = new DatagramSocket(port);
+			} catch (SocketException e) {
+				System.out.println("Error: Socket creatation failed.");
+			}
+
+			preparePayload();
+			for (Link neighbor : neighbors) {
+				if (neighbor.isAlive) {
+					RUUDPpacket rudp = new RUUDPpacket();
+					rudp.createPacket(broadcastDataByte, listenPort, neighbor.listenPort);
+					try {
+						broadcastPacket = new DatagramPacket(rudp.getOutputPacket(), rudp.getOutputPacket().length,
+								InetAddress.getByName(neighbor.routerIP), neighbor.listenPort);
+					} catch (UnknownHostException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			broadcastSocket.close();
+		}
+	}
+
+	public void preparePayload() {
+		try {
+			outputStream = new ByteArrayOutputStream();
+			oos = new ObjectOutputStream(outputStream);
+			oos.writeObject(linkInfo);
+			broadcastDataByte = outputStream.toByteArray();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+}
