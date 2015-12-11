@@ -1,3 +1,4 @@
+import java.io.*;
 import java.net.*;
 import java.util.*;
 
@@ -146,5 +147,50 @@ public class bfclient {
 
 	private static void printInstruction() {
 		System.out.println("java ./class/bfclient localport timeout [ipaddress1 port1 weight1 ...]");
+	}
+}
+
+
+// Thread for listening to ROUTE UPDATE
+class ListenThread extends Thread {
+	DatagramSocket listenSocket;
+	DatagramPacket inputDatagram;
+	byte[] inputDataByte = new byte[60 * 1024];
+	ObjectInputStream ois;
+	int listenPort;
+	ArrayList<Link> links;
+	LinkInfo linkInfo;
+	Router routerDV;
+
+	public ListenThread(int listenPort, LinkInfo linkInfo, ArrayList<Link> links, Router routerDV) {
+		this.listenPort = listenPort;
+		this.linkInfo = linkInfo;
+		this.links = links;
+		this.routerDV = routerDV;
+	}
+
+	@Override
+	public void run() {
+		try {
+			listenSocket = new DatagramSocket(listenPort);
+
+			while (true) {
+				inputDatagram = new DatagramPacket(inputDataByte, inputDataByte.length);
+				listenSocket.receive(inputDatagram);
+				RUUDPpacket rudp = new RUUDPpacket();
+				rudp.extractPacket(inputDataByte);
+
+				if (!rudp.verifyChecksum()) {
+					System.out.println("Packet is corrupted.");
+				} else {
+					ois = new ObjectInputStream(new ByteArrayInputStream(rudp.getPayload()));
+					LinkInfo incomingLinks = (LinkInfo) ois.readObject();
+					routerDV.updateDistanceVector(linkInfo, incomingLinks);
+				}
+			}
+		}
+		catch (IOException | ClassNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 }
