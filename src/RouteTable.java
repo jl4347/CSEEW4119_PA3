@@ -1,4 +1,6 @@
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class RouteTable {
 	public ArrayList<RouteInfo> routeTable;
@@ -22,8 +24,16 @@ public class RouteTable {
 	}
 
 	public void showRouteTable() {
+		System.out.println("<" + getCurrentTime() + "> Distance vector list is:");
 		for (RouteInfo route : routeTable) {
 			System.out.println(route.toString());
 		}
+	}
+	
+	private String getCurrentTime() {
+		SimpleDateFormat sdfDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	    Date now = new Date();
+	    String strDate = sdfDate.format(now);
+	    return strDate;
 	}
 }
