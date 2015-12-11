@@ -8,11 +8,11 @@ public class RUUDPpacket {
 	private byte[] payload;
 	private int sourcePort;
 	private int destPort;
-	private int dataOffset;
+	private int dataLength;
 	private int checksum;
 	
 	public final int INT_BYTE_LENGTH = 4;
-	public final int DATA_OFFSET = 8;
+	public final int DATALENGTH_INDEX = 8;
 	public final int CHECKSUM_INDEX = 12;
 	public final int HEADER_LENGTH = 16;
 	
@@ -26,14 +26,14 @@ public class RUUDPpacket {
 		
 		byte[] sendPortByte = ByteBuffer.allocate(4).putInt(sourcePort).array();
 		byte[] destPortByte = ByteBuffer.allocate(4).putInt(destPort).array();
-		byte[] dataOffset = ByteBuffer.allocate(4).putInt(HEADER_LENGTH).array();
+		byte[] dataLengthByte = ByteBuffer.allocate(4).putInt(payload.length).array();
 		
 		int checksum = computeChecksum(sourcePort, destPort, HEADER_LENGTH, payload.length);
 		byte[] checksumByte = ByteBuffer.allocate(4).putInt(checksum).array();
 		
 		System.arraycopy(sendPortByte, 0, outputPacket, 0, INT_BYTE_LENGTH);
 		System.arraycopy(destPortByte, 0, outputPacket, 4, INT_BYTE_LENGTH);
-		System.arraycopy(dataOffset, 0, outputPacket, DATA_OFFSET, INT_BYTE_LENGTH);
+		System.arraycopy(dataLengthByte, 0, outputPacket, DATALENGTH_INDEX, INT_BYTE_LENGTH);
 		System.arraycopy(checksumByte, 0, outputPacket, CHECKSUM_INDEX, INT_BYTE_LENGTH);
 		System.arraycopy(payload, 0, outputPacket, HEADER_LENGTH, payload.length);
 	}
@@ -44,30 +44,30 @@ public class RUUDPpacket {
 		
 		byte[] sendPortByte = new byte[INT_BYTE_LENGTH];
 		byte[] destPortByte = new byte[INT_BYTE_LENGTH];
-		byte[] dataOffsetByte = new byte[INT_BYTE_LENGTH];
+		byte[] dataLengthByte = new byte[INT_BYTE_LENGTH];
 		byte[] checksumByte = new byte[INT_BYTE_LENGTH];
 		
 		System.arraycopy(inputPacket, 0, sendPortByte, 0, INT_BYTE_LENGTH);
 		System.arraycopy(inputPacket, 4, destPortByte, 0, INT_BYTE_LENGTH);
-		System.arraycopy(inputPacket, DATA_OFFSET, dataOffsetByte, 0, INT_BYTE_LENGTH);
+		System.arraycopy(inputPacket, DATALENGTH_INDEX, dataLengthByte, 0, INT_BYTE_LENGTH);
 		System.arraycopy(inputPacket, CHECKSUM_INDEX, checksumByte, 0, INT_BYTE_LENGTH);
 		System.arraycopy(inputPacket, HEADER_LENGTH, payload, 0, payload.length);
 		
 		sourcePort = ByteBuffer.wrap(sendPortByte).getInt();
 		destPort = ByteBuffer.wrap(destPortByte).getInt();
-		dataOffset = ByteBuffer.wrap(dataOffsetByte).getInt();
+		dataLength = ByteBuffer.wrap(dataLengthByte).getInt();
 		checksum = ByteBuffer.wrap(checksumByte).getInt();
 	}
 	
-	public int computeChecksum(int sourcePort, int destPort, int dataOffset, int packetSize) {
-		int checksum = sourcePort + destPort + dataOffset + packetSize;
+	public int computeChecksum(int sourcePort, int destPort, int dataLength, int packetSize) {
+		int checksum = sourcePort + destPort + dataLength + packetSize;
 		checksum = ~checksum;
 		
 		return checksum;
 	}
 	
 	public boolean verifyChecksum() {
-		int calChecksum = computeChecksum(sourcePort, destPort, dataOffset, payload.length);
+		int calChecksum = computeChecksum(sourcePort, destPort, dataLength, payload.length);
 		return calChecksum == checksum;
 	}
 	
@@ -111,12 +111,12 @@ public class RUUDPpacket {
 		this.destPort = destPort;
 	}
 
-	public int getDataOffset() {
-		return dataOffset;
+	public int getDataLength() {
+		return dataLength;
 	}
 
-	public void setDataOffset(int dataOffset) {
-		this.dataOffset = dataOffset;
+	public void setDataOffset(int dataLength) {
+		this.dataLength = dataLength;
 	}
 
 	public int getChecksum() {
