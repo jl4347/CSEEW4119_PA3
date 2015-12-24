@@ -29,7 +29,7 @@ public class RUUDPpacket {
 		byte[] destPortByte = ByteBuffer.allocate(4).putInt(destPort).array();
 		byte[] dataLengthByte = ByteBuffer.allocate(4).putInt(payload.length).array();
 		
-		int checksum = computeChecksum(sourcePort, destPort, HEADER_LENGTH, payload.length);
+		int checksum = computeChecksum(sourcePort, destPort, payload.length);
 		byte[] checksumByte = ByteBuffer.allocate(4).putInt(checksum).array();
 		
 		System.arraycopy(sendPortByte, 0, outputPacket, 0, INT_BYTE_LENGTH);
@@ -61,15 +61,15 @@ public class RUUDPpacket {
 		System.arraycopy(inputPacket, HEADER_LENGTH, payload, 0, payload.length);
 	}
 	
-	public int computeChecksum(int sourcePort, int destPort, int dataLength, int packetSize) {
-		int checksum = sourcePort + destPort + dataLength + packetSize;
+	public int computeChecksum(int sourcePort, int destPort, int dataLength) {
+		int checksum = sourcePort + destPort + dataLength;
 		checksum = ~checksum;
 		
 		return checksum;
 	}
 	
 	public boolean verifyChecksum() {
-		int calChecksum = computeChecksum(sourcePort, destPort, dataLength, payload.length);
+		int calChecksum = computeChecksum(sourcePort, destPort, dataLength);
 		return calChecksum == checksum;
 	}
 	

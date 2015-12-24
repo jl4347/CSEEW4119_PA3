@@ -40,7 +40,7 @@ public class bfclient {
 		routerDV.createDistanceVector(linkInfo);
 		
 		// Start Listening Thread
-		new ListenThread(listenPort, linkInfo, linkHistory, routerDV).start();
+		new ListenThread(timeout, listenPort, linkInfo, linkHistory, routerDV).start();
 		
 		// Start broadcasting Thread
 		new BroadcastThread(timeout, linkInfo, linkHistory, listenPort).start();
@@ -55,10 +55,12 @@ public class bfclient {
 		timeout = Integer.parseInt(args[1]);
 		
 		// Store original links for recover and send link update to neighbors
-		//linkHistory.add(new Link(InetAddress.getLocalHost().getHostAddress(), listenPort, 0.0, true));
+		linkHistory.add(new Link(InetAddress.getLocalHost().getHostAddress(), listenPort, 0.0, 
+				true, new Date().getTime()));
 		for (int router = 0; router < (args.length - 2) / 3; router++) {
 			linkHistory.add(new Link(InetAddress.getByName(args[(router * 3) + 2]).getHostAddress(), 
-					Integer.parseInt(args[(router * 3) + 3]), Double.parseDouble(args[(router * 3) + 4])));
+					Integer.parseInt(args[(router * 3) + 3]), Double.parseDouble(args[(router * 3) + 4]),
+					false, new Date().getTime()));
 		}
 		
 		localhost = InetAddress.getLocalHost().getHostAddress() + ":" + listenPort;
@@ -75,31 +77,23 @@ public class bfclient {
 				continue;
 			}
 			String cmd = command[0].toUpperCase();
-
-			switch (cmd) {
-				case LINKDOWN:
-					linkDown(command);
-					break;
-				case LINKUP:
-					linkUp(command);
-					break;
-				case SHOWRT:
-					showRT(command);
-					break;
-				case CLOSE:
-					close();
-					break;
-				default:
-					System.out.println("Unknown command: " + input);
-					break;
-			}
+			
+			if (cmd.equals(LINKDOWN))
+				linkDown(command);
+			else if (cmd.equals(LINKUP))
+				linkUp(command);
+			else if (cmd.equals(SHOWRT))
+				showRT(command);
+			else if (cmd.equals(CLOSE))
+				close();
+			else System.out.println("Unknown command: " + input);
 		}
 	}
 	
 	private void linkDown(String[] command) {
 		System.out.println("Initiate LINKDOWN");
 		if (command.length != 3) {
-			System.out.println("Illege Command.");
+			System.out.println("Illegal Command.");
 			System.out.println("Usage: LINKDOWN <ip> <port>");
 			return;
 		}
@@ -119,7 +113,7 @@ public class bfclient {
 	private void linkUp(String[] command) {
 		System.out.println("Initiate LINKUP");
 		if (command.length != 3) {
-			System.out.println("Illege Command.");
+			System.out.println("Illegal Command.");
 			System.out.println("Usage: LINKUP <ip> <port>");
 			return;
 		}
@@ -127,6 +121,7 @@ public class bfclient {
 		for (Link link : linkHistory) {
 			if (link.toString().equals(command[1] + ":" + command[2])) {
 				link.isAlive = true;
+				link.stopExchange = false;
 				linkInfo.linkMap.replace(command[1] + ":" + command[2], link.weight);
 				linkInfo.brokenLink.remove(command[1] + ":" + command[2]);
 				routerDV.linkDown.put(command[1] + ":" + command[2], false);
@@ -144,7 +139,7 @@ public class bfclient {
 	}
 
 	private static void printInstruction() {
-		System.out.println("java ./class/bfclient localport timeout [ipaddress1 port1 weight1 ...]");
+		System.out.println("java bfclient localport timeout [ipaddress1 port1 weight1 ...]");
 		System.exit(0);
 	}
 }
@@ -152,6 +147,7 @@ public class bfclient {
 
 // Thread for listening to ROUTE UPDATE
 class ListenThread extends Thread {
+	int timeout;
 	DatagramSocket listenSocket;
 	DatagramPacket inputDatagram;
 	byte[] inputDataByte = new byte[60 * 1024];
@@ -161,7 +157,7 @@ class ListenThread extends Thread {
 	LinkInfo linkInfo;
 	Router routerDV;
 
-	public ListenThread(int listenPort, LinkInfo linkInfo, ArrayList<Link> links, Router routerDV) {
+	public ListenThread(int timeout, int listenPort, LinkInfo linkInfo, ArrayList<Link> links, Router routerDV) {
 		this.listenPort = listenPort;
 		this.linkInfo = linkInfo;
 		this.links = links;
@@ -185,11 +181,37 @@ class ListenThread extends Thread {
 					ois = new ObjectInputStream(new ByteArrayInputStream(rudp.getPayload()));
 					LinkInfo incomingLinks = (LinkInfo) ois.readObject();
 					routerDV.updateDistanceVector(linkInfo, incomingLinks);
+//					updateLinkStatus(incomingLinks.host);
 				}
 			}
-		} catch (IOException | ClassNotFoundException e) {
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void updateLinkStatus(String incomingHost) {
+		for (Link link : links) {
+			if (link.isSelf) continue;
+			if (link.toString().equals(incomingHost))
+				link.lastUpdate = new Date().getTime();
+			else if (checkTimeout(link))
+				linkDown(link);
+		}
+	}
+	
+	public boolean checkTimeout(Link link) {
+		long interval = new Date().getTime() - link.lastUpdate;
+		return interval >= (timeout * 3000);
+	}
+	
+	public void linkDown(Link link) {
+		linkInfo.linkMap.replace(link.toString(), Double.POSITIVE_INFINITY);
+		linkInfo.brokenLink.put(link.toString(), true);
+		
+		link.isAlive = false;
+		System.out.println("Host: " + link.toString() + " Down due to inactivity...");
 	}
 }
 
@@ -210,7 +232,12 @@ class BroadcastThread extends Thread {
 
 	public BroadcastThread(int timeout, LinkInfo linkInfo, ArrayList<Link> links, int listenPort) {
 		this.linkInfo = linkInfo;
-		neighbors = links;
+		
+		neighbors = new ArrayList<Link>();
+		for (Link link : links) {
+			if (!link.isSelf)
+				neighbors.add(link);
+		}
 		this.timeout = timeout;
 		this.listenPort = listenPort;
 	}
@@ -234,14 +261,10 @@ class BroadcastThread extends Thread {
 			preparePayload();
 			for (Link neighbor : neighbors) {
 				if (neighbor.isAlive) {
-					RUUDPpacket rudp = new RUUDPpacket();
-					rudp.createPacket(broadcastDataByte, listenPort, neighbor.listenPort);
-					try {
-						broadcastPacket = new DatagramPacket(rudp.getOutputPacket(), rudp.getOutputPacket().length,
-								InetAddress.getByName(neighbor.routerIP), neighbor.listenPort);
-					} catch (UnknownHostException e) {
-						e.printStackTrace();
-					}
+					sendPacket(neighbor);
+				} else if (!neighbor.stopExchange) {
+					sendPacket(neighbor);
+					neighbor.stopExchange = true;
 				}
 			}
 			broadcastSocket.close();
@@ -255,6 +278,18 @@ class BroadcastThread extends Thread {
 			oos.writeObject(linkInfo);
 			broadcastDataByte = outputStream.toByteArray();
 		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void sendPacket(Link receiver) {
+		RUUDPpacket rudp = new RUUDPpacket();
+		rudp.createPacket(broadcastDataByte, listenPort, receiver.listenPort);
+		try {
+			broadcastPacket = new DatagramPacket(rudp.getOutputPacket(), rudp.getOutputPacket().length,
+					InetAddress.getByName(receiver.routerIP), receiver.listenPort);
+			broadcastSocket.send(broadcastPacket);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

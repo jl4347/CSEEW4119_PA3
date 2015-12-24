@@ -18,29 +18,32 @@ public class Router {
 		this.host = host;
 		links = linkHistory;
 
-		linkDown = new HashMap<>();
+		linkDown = new HashMap<String, Boolean>();
 		for (Link link : linkHistory) 
 			linkDown.put(link.toString(), false);
 		
-		routersList = new ArrayList<>();
-		linkInfoTable = new ConcurrentHashMap<>();
-		distanceVector = new ConcurrentHashMap<>();
+		routersList = new ArrayList<String>();
+		linkInfoTable = new ConcurrentHashMap<String, LinkInfo>();
+		distanceVector = new ConcurrentHashMap<String, Double>();
 
 		routeTable = new RouteTable();
 	}
 
 	public void createDistanceVector(LinkInfo localLinks) {
+		linkInfoTable.put(host, localLinks);
+		
 		for (ConcurrentHashMap.Entry<String, Double> link : localLinks.linkMap.entrySet()) {
 			routersList.add(link.getKey());
-			linkInfoTable.put(host, localLinks);
 			distanceVector.put(link.getKey(), link.getValue());
 
-			routeTable.addRouteInfo(new RouteInfo(link.getKey(), link.getValue(), link.getKey()));
+			if (!link.getKey().equals(host))
+				routeTable.addRouteInfo(new RouteInfo(link.getKey(), link.getValue(), link.getKey(), true));
+			else routeTable.addRouteInfo(new RouteInfo(link.getKey(), link.getValue(), link.getKey(), false));
 		}
 	}
 
 	public void updateDistanceVector(LinkInfo localLinks, LinkInfo incomingLinks) {
-		//		System.out.println("ListenThread: Process update from: " + incomingLinks.host);
+		System.out.println("ListenThread: Process update from: " + incomingLinks.host);
 
 		linkInfoTable.put(incomingLinks.host, incomingLinks);
 
@@ -48,8 +51,10 @@ public class Router {
 		if (incomingLinks.linkMap.get(localLinks.host) == Double.POSITIVE_INFINITY
 				&& localLinks.linkMap.get(incomingLinks.host) != Double.POSITIVE_INFINITY) {
 			for (Link link : links) {
-				if (link.toString().equals(incomingLinks.host))
+				if (link.toString().equals(incomingLinks.host)) {
 					link.isAlive = false;
+					link.stopExchange = true;
+				}
 			}
 			localLinks.brokenLink.put(incomingLinks.host, true);
 			linkInfoTable.get(host).linkMap.put(incomingLinks.host, Double.POSITIVE_INFINITY);
@@ -60,7 +65,6 @@ public class Router {
 				&& localLinks.brokenLink.containsKey(incomingLinks.host)
 				&& !linkDown.get(incomingLinks.host)) {
 			localLinks.brokenLink.remove(incomingLinks.host);
-			linkInfoTable.get(host).linkMap.put(incomingLinks.host, incomingLinks.linkMap.get(host));
 			System.out.println("restore");
 		}
 
@@ -77,6 +81,9 @@ public class Router {
 
 		// Calculate distance vector 
 		for (String dst : routersList) {
+			if (host.equals(dst)) 
+				continue;
+			
 			double currentCost = Double.POSITIVE_INFINITY;
 			String next = "";
 
@@ -99,9 +106,6 @@ public class Router {
 				if (localLinks.brokenLink.containsKey(dst) && linkInfoTable.get(dst).indirectNeighbor.containsKey(path.getKey()))
 					continue;
 
-				if (path.getKey().equals(host))
-					continue;
-
 				double viaCost = linkInfoTable.get(host).linkMap.get(path.getKey()) + path.getValue().linkMap.get(dst);
 				//System.out.println("via = " + via.getKey() + ", " + viaCost);
 				if (viaCost < currentCost) {
@@ -120,7 +124,7 @@ public class Router {
 
 			if (distanceVector.get(dst) != currentCost) {
 				distanceVector.put(dst, currentCost);
-				routeTable.replaceRouteInfo(new RouteInfo(dst, currentCost, next));
+				routeTable.replaceRouteInfo(new RouteInfo(dst, currentCost, next, true));
 				System.out.println("ListenThread: Update " + dst + ":" + currentCost + ", " + next);
 			}
 		}

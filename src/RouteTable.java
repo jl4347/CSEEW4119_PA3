@@ -6,7 +6,7 @@ public class RouteTable {
 	public ArrayList<RouteInfo> routeTable;
 
 	public RouteTable() {
-		routeTable = new ArrayList<>();
+		routeTable = new ArrayList<RouteInfo>();
 	}
 
 	public void addRouteInfo(RouteInfo routeInfo) {
@@ -17,16 +17,16 @@ public class RouteTable {
 		int index = 0;
 		for (; index < routeTable.size(); index++) {
 			if (routeInfo.destination.equals(routeTable.get(index).destination))
-				break;
+				routeTable.get(index).isValid = false;
 		}
-		routeTable.remove(index);
 		routeTable.add(routeInfo);
 	}
 
 	public void showRouteTable() {
 		System.out.println("<" + getCurrentTime() + "> Distance vector list is:");
 		for (RouteInfo route : routeTable) {
-			System.out.println(route.toString());
+			if (route.isValid)
+				System.out.println(route.toString());
 		}
 	}
 	
